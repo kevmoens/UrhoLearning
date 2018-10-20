@@ -127,6 +127,17 @@ namespace UrhoLearning
 
             //boxNode.Rotate(new Quaternion(0, 180, 0), TransformSpace.World);
             //await CameraNode.RunActionsAsync(new Urho.Actions.Repeat(new Urho.Actions.MoveBy(1f, new Vector3(0, 1, 0)), 12));
+
+
+            RotateAnimate(boxNode);
+        }
+
+        public static async void RotateAnimate(Node node)
+        {
+            do
+            {
+                await node.RunActionsAsync(new RotateBy(2.0f, 0, 360, 0));
+            } while (true);
         }
 
         private void Root_Resized(ResizedEventArgs obj)
@@ -138,14 +149,17 @@ namespace UrhoLearning
 
             Material bucketMaterial;
             // Model and Physics for the bucket
-            var bucketModel = mainNode.CreateComponent<StaticModel>();
+            Node chicagoNode = mainNode.CreateChild("CHICAGO");
+            var bucketModel = chicagoNode.CreateComponent<StaticModel>();           
             bucketMaterial = Material.FromColor(validPositionColor);
-            bucketModel.Model = ResourceCache.GetModel("C:/code/Xamarin/Urho/UrhoLearning/UrhoLearning/Data/Models/Chicago.mdl");
+            bucketModel.Model = ResourceCache.GetModel("C:/code/Xamarin/Urho/UrhoLearning/UrhoLearning/Data/Models/Object.000.mdl");
             bucketModel.SetMaterial(bucketMaterial);
+           
             bucketModel.ViewMask = 0x80000000; //hide from raycasts
-            mainNode.CreateComponent<RigidBody>();
-            var shape = mainNode.CreateComponent<CollisionShape>();
+            //mainNode.CreateComponent<RigidBody>();
+            var shape = chicagoNode.CreateComponent<CollisionShape>();
             shape.SetTriangleMesh(bucketModel.Model, 0, Vector3.One, Vector3.Zero, Quaternion.Identity);
+            chicagoNode.SetScale(.05f);
         }
         private void AddPlaneNode()
         {
@@ -224,101 +238,196 @@ namespace UrhoLearning
 
             if (input.GetKeyPress(Urho.Key.F))
             {
-
-                if (box.Color == Urho.Color.Transparent)
-                {
-                    box.Color = Urho.Color.Blue;
-                }
-                else
-                {
-                    box.Color = Urho.Color.Transparent;
-                }
-
-                Ray cameraRay = camera.GetScreenRay(0.5f, .5f);
-                var result = scene.GetComponent<Octree>().RaycastSingle(cameraRay, RayQueryLevel.Triangle, 100, DrawableFlags.Geometry, 0x70000000);
-                if (result != null)
-                {
-                    //Node planeNode = CameraNode.CreateChild("planeNode");
-                    //Node planeNode = result.Value.Node.CreateChild("planeNode");
-
-                    Node planeNode = mainNode.CreateChild("planeNode");
-                    //Node planeNode = result.Value.Node.CreateChild("planeNode");
-                    planeNode.Position = result.Value.Position;
-                    var pos = new Vector3(result.Value.Position.X - result.Value.Node.Position.X, result.Value.Position.Y - result.Value.Node.Position.Y, result.Value.Position.Z - result.Value.Node.Position.Z);
-                    var disX = Math.Abs(pos.X);
-                    var disY = Math.Abs(pos.Y);
-                    var disZ = Math.Abs(pos.Z);
-                    
-                    //Primary
-                    if (disX > disY && disX > disZ)
-                    { //Primary is X  
-                        if (pos.X < 0)
-                        { //Left
-                            planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitZ, 90);
-                        }
-                        else
-                        { //right
-                            planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitZ, 270);
-                        }
-                    } else if (disY > disZ)
-                    { //Primary is Y
-                        if (pos.Y >= 0)
-                        { //top
-                            planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitZ, 0);
-                        } else
-                        { //Bottom
-                            planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitZ, 180);
-                        }
-                    } else
-                    { //Primary is Z
-                        if (pos.Z < 0 )
-                        { //Front
-                            planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitX, 270);
-                        } else
-                        { //Back
-                            planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitX, 90);
-                        }
-                    }
-                    //TODO Next rotate by Node Rotation
-                    //planeNode.Rotate(Quaternion.FromRotationTo(CameraNode.WorldUp, result.Value.Normal));
-
-                    //TODO adjust postion based on drawable vs node
-                    planeNode.Position = result.Value.Position; //Only set position if we create from Value.Node.  Else if we add node to intersecting node it will use the center of that node
-                    //planeNode.Translate(new Vector3(0, 0, -1));
-                    Urho.Shapes.Plane plane = planeNode.CreateComponent<Urho.Shapes.Plane>();
-                    planeNode.Scale = new Vector3(.5f, .5f, .5f);
-                    plane.Color = new Urho.Color(1f, 1f, 1f);
-
-                    var radian = Vector3.CalculateAngle(cameraRay.Direction, result.Value.Normal);
-                    var degree = RadianToDegree(radian);
-                    radian = DegreeToRadian(degree);
-
-
-                    //planeNode.Rotate( Quaternion.FromAxisAngle(Vector3.UnitX, 270)); //Plan typically faces up.  Now flip facing top back toward 0,0,0
-
-                    
-                    // Create a ball (will be cloned)
-                    var ballNode = mainNode.CreateChild();
-                    ballNode.Position = result.Value.Position;
-                    //ballNode.Rotation = RightCamera.Node.Rotation;
-                    ballNode.SetScale(0.15f);
-
-                    var ball = ballNode.CreateComponent<StaticModel>();
-                    ball.Model = CoreAssets.Models.Sphere;
-                    ball.SetMaterial(Material.FromColor(Randoms.NextColor()));
-                    ball.ViewMask = 0x80000000; //hide from raycasts
-
-
-
-
-
-
-
-                }
+                //ManualPlacePlane();
+                //PlaceDecal();
+                PlaceOutletModelParallelToGround();
             }
 
             base.OnUpdate(timeStep);
         }
+
+
+
+        private void PlaceDecal()
+        {
+            
+
+            Ray cameraRay = camera.GetScreenRay(0.5f, .5f);
+            var result = scene.GetComponent<Octree>().RaycastSingle(cameraRay, RayQueryLevel.Triangle, 100, DrawableFlags.Geometry, 0x70000000);
+            if (result != null)
+            {
+
+                Vector3 hitPos = result.Value.Position;
+                Drawable hitDrawable = result.Value.Drawable;
+
+
+                var targetNode = hitDrawable.Node;
+                var decal = targetNode.GetComponent<DecalSet>();
+
+                if (decal == null)
+                {
+                    var cache = ResourceCache;
+                    decal = targetNode.CreateComponent<DecalSet>();
+                    var i = ResourceCache.GetImage("Data\\sa_control-panel.png");
+                    decal.Material = Material.FromImage(i);
+                    decal.Material.CullMode = CullMode.Ccw;
+                    decal.Material.ShadowCullMode = CullMode.Ccw;
+                    decal.Material.FillMode = FillMode.Solid;
+                    decal.Material.DepthBias = new BiasParameters(7685, 0);
+                    decal.Material.RenderOrder = 128;
+
+                    //decal.Material = cache.GetMaterial("Materials/UrhoDecal.xml");
+                }
+
+                // Add a square decal to the decal set using the geometry of the drawable that was hit, orient it to face the camera,
+                // use full texture UV's (0,0) to (1,1). Note that if we create several decals to a large object (such as the ground
+                // plane) over a large area using just one DecalSet component, the decals will all be culled as one unit. If that is
+                // undesirable, it may be necessary to create more than one DecalSet based on the distance
+                decal.AddDecal(hitDrawable, hitPos, camera.Node.Rotation * -1, 0.5f, 1.0f, 1.0f, Vector2.Zero,
+                    Vector2.One, 0.0f, 0.1f, uint.MaxValue);
+            }
+        }
+
+
+        private void ManualPlacePlane()
+        {
+            if (box.Color == Urho.Color.Transparent)
+            {
+                box.Color = Urho.Color.Blue;
+            }
+            else
+            {
+                box.Color = Urho.Color.Transparent;
+            }
+
+            Ray cameraRay = camera.GetScreenRay(0.5f, .5f);
+            var result = scene.GetComponent<Octree>().RaycastSingle(cameraRay, RayQueryLevel.Triangle, 100, DrawableFlags.Geometry, 0x70000000);
+            if (result != null)
+            {
+                //Node planeNode = CameraNode.CreateChild("planeNode");
+                //Node planeNode = result.Value.Node.CreateChild("planeNode");
+
+                Node planeNode = mainNode.CreateChild("planeNode");
+                //Node planeNode = result.Value.Node.CreateChild("planeNode");
+                planeNode.Position = result.Value.Position;
+                var pos = new Vector3(result.Value.Position.X - result.Value.Node.Position.X, result.Value.Position.Y - result.Value.Node.Position.Y, result.Value.Position.Z - result.Value.Node.Position.Z);
+                var disX = Math.Abs(pos.X);
+                var disY = Math.Abs(pos.Y);
+                var disZ = Math.Abs(pos.Z);
+
+                //Primary
+                if (disX > disY && disX > disZ)
+                { //Primary is X  
+                    if (pos.X < 0)
+                    { //Left
+                        planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitZ, 90);
+                    }
+                    else
+                    { //right
+                        planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitZ, 270);
+                    }
+                }
+                else if (disY > disZ)
+                { //Primary is Y
+                    if (pos.Y >= 0)
+                    { //top
+                        planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitZ, 0);
+                    }
+                    else
+                    { //Bottom
+                        planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitZ, 180);
+                    }
+                }
+                else
+                { //Primary is Z
+                    if (pos.Z < 0)
+                    { //Front
+                        planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitX, 270);
+                    }
+                    else
+                    { //Back
+                        planeNode.Rotation = Quaternion.FromAxisAngle(Vector3.UnitX, 90);
+                    }
+                }
+                //TODO Next rotate by Node Rotation
+                //planeNode.Rotate(Quaternion.FromRotationTo(CameraNode.WorldUp, result.Value.Normal));
+
+                //TODO adjust postion based on drawable vs node
+                planeNode.Position = result.Value.Position; //Only set position if we create from Value.Node.  Else if we add node to intersecting node it will use the center of that node
+                                                            //planeNode.Translate(new Vector3(0, 0, -1));
+                Urho.Shapes.Plane plane = planeNode.CreateComponent<Urho.Shapes.Plane>();
+                planeNode.Scale = new Vector3(.5f, .5f, .5f);
+                plane.Color = new Urho.Color(1f, 1f, 1f);
+
+                var radian = Vector3.CalculateAngle(cameraRay.Direction, result.Value.Normal);
+                var degree = RadianToDegree(radian);
+                radian = DegreeToRadian(degree);
+
+
+                //planeNode.Rotate( Quaternion.FromAxisAngle(Vector3.UnitX, 270)); //Plan typically faces up.  Now flip facing top back toward 0,0,0
+
+
+                // Create a ball (will be cloned)
+                var ballNode = mainNode.CreateChild();
+                ballNode.Position = result.Value.Position;
+                //ballNode.Rotation = RightCamera.Node.Rotation;
+                ballNode.SetScale(0.15f);
+
+                var ball = ballNode.CreateComponent<StaticModel>();
+                ball.Model = CoreAssets.Models.Sphere;
+                ball.SetMaterial(Material.FromColor(Randoms.NextColor()));
+                ball.ViewMask = 0x80000000; //hide from raycasts
+
+
+
+
+
+
+
+            }
+        }
+
+
+        private void PlaceOutletModelParallelToGround()
+        {
+
+
+            Ray cameraRay = camera.GetScreenRay(0.5f, .5f);
+            var result = scene.GetComponent<Octree>().RaycastSingle(cameraRay, RayQueryLevel.Triangle, 100, DrawableFlags.Geometry, 0x70000000);
+            if (result != null)
+            {
+                if (result.Value.Node.Name == "")
+                {
+                    result.Value.Node.Remove();
+                }
+            }
+
+            result = scene.GetComponent<Octree>().RaycastSingle(cameraRay, RayQueryLevel.Triangle, 100, DrawableFlags.Geometry, 0x70000000);
+            if (result != null)
+            {
+                var outletBase = result.Value.Node.CreateChild("OUTLET");
+                //outletBase.Scale = new Vector3(1, 1f, 1) / 10;
+                outletBase.Position = result.Value.Position * -0.1f;
+                
+
+                var nodeOutlet = outletBase.CreateChild();
+
+
+                var neg = result.Value.Node.Rotation;
+                nodeOutlet.Rotation =  new Quaternion(neg.X, neg.Y, neg.Z, neg.W * -1); //Opposite of the rotation of the Node, if we use result.Value.Position
+
+                
+
+
+                nodeOutlet.SetScale(1.0f);
+
+                nodeOutlet.CreateComponent<Box>();
+
+
+               
+            }
+        }
+
         private float RadianToDegree(float angle)
         {
             return (float)(angle * (180.0f / Math.PI));
@@ -356,6 +465,47 @@ namespace UrhoLearning
             if (input.GetKeyPress(Urho.Key.E))
             {
                 action = new MoveBy(duration, new Vector3(0, -1, 0));
+            }
+
+
+            if (input.GetKeyPress(Urho.Key.K))
+            {
+                boxNode.RunActionsAsync(new RotateBy(duration, 0, 10, 0));
+            }
+            if (input.GetKeyPress(Urho.Key.L))
+            {
+                boxNode.RunActionsAsync(new RotateBy(duration, 0, -10, 0));
+            }
+            if (input.GetKeyPress(Urho.Key.J))
+            {
+                boxNode.RunActionsAsync(new RotateBy(duration, 10, 0, 0));
+            }
+            if (input.GetKeyPress(Urho.Key.I))
+            {
+                boxNode.RunActionsAsync(new RotateBy(duration, 10, 0, 0));
+            }
+            if (input.GetKeyPress(Urho.Key.K))
+            {
+                boxNode.RunActionsAsync(new RotateBy(duration, -10, 0, 0));
+            }
+            if (input.GetKeyPress(Urho.Key.O))
+            {
+                boxNode.RunActionsAsync(new RotateBy(duration, 0, 0, 10));
+            }
+            if (input.GetKeyPress(Urho.Key.U))
+            {
+                boxNode.RunActionsAsync(new RotateBy(duration, 0, 0, -10));
+            }
+            if (input.GetKeyPress(Urho.Key.T))
+            {
+                if (box.Color == Urho.Color.Transparent)
+                {
+                    box.Color = Urho.Color.Blue;
+                }
+                else
+                {
+                    box.Color = Urho.Color.Transparent;
+                }
             }
 
 
